@@ -13,10 +13,10 @@ open class JsonSyntaxHighlightProvider: SyntaxHighlightProvider {
     ///
     /// - parameters:
     ///   - attributedText:      The `NSMutableAttributedString` that should be highlighted.
-    ///   - syntaxIdentifier:        The identifier of the syntax that should be used to highlight the given `String`
-    open func highlight(_ attributedText: NSMutableAttributedString, as syntaxIdentifier: String) {
-        if syntaxIdentifier.lowercased() != "json" {
-            debugPrint("Highlighting '\(syntaxIdentifier)' is not supported. Supported ones are: 'json'")
+    ///   - syntaxIdentifier:        The syntax that should be used to highlight the given `String`
+    open func highlight(_ attributedText: NSMutableAttributedString, as syntax: Syntax) {
+        guard case .json = syntax else {
+            debugPrint("Highlighting '\(syntax)' is not supported. Supported ones are: 'json'")
             return
         }
         

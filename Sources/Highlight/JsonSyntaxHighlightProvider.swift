@@ -25,6 +25,8 @@ open class JsonSyntaxHighlightProvider: SyntaxHighlightProvider {
             return
         }
         
+        attributedText.addAttributes([ .foregroundColor : theme.unknownColor, .font : theme.unknownFont ], range: NSRange(location: 0, length: attributedText.length))
+        
         let theme = self.theme
 
         let tokenizer = JsonTokenizer()
@@ -41,8 +43,8 @@ open class JsonSyntaxHighlightProvider: SyntaxHighlightProvider {
                 attributedText.setAttributes([ .foregroundColor : theme.numericValueColor, .font : theme.numericValueFont ], range: range)
             case .literal(let range):
                 attributedText.setAttributes([ .foregroundColor : theme.literalColor, .font : theme.literalFont ], range: range)
-            case .unknown(let range, _):
-                attributedText.setAttributes([ .foregroundColor : theme.unknownColor, .font : theme.unknownFont ], range: range)
+            case .unknown(_, _):
+                return
             }
 
         }

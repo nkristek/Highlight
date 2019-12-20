@@ -14,23 +14,47 @@ open class JsonSyntaxHighlightProvider: SyntaxHighlightProvider {
     /// The theme which will be used to highlight the JSON data
     open var theme: JsonSyntaxHighlightingTheme
     
-    /// Modify the given `NSMutableAttributedString` to be highlighted according to the syntax.
+    /// Modify the given `NSMutableAttributedString` to be highlighted according to the syntax. It will be parsed using the `JsonTokenizerBehaviour.lenient` setting.
     ///
     /// - parameters:
     ///   - attributedText:      The `NSMutableAttributedString` that should be highlighted.
-    ///   - syntaxIdentifier:        The syntax that should be used to highlight the given `String`
+    ///   - syntax:              The syntax that should be used to highlight the given `String`.
     open func highlight(_ attributedText: NSMutableAttributedString, as syntax: Syntax) {
         guard case .json = syntax else {
             debugPrint("Highlighting '\(syntax)' is not supported. Supported ones are: 'json'")
             return
         }
         
+        let tokenizer = JsonTokenizer(behaviour: .lenient)
+        let tokens = tokenizer.tokenize(attributedText.string)
+        highlightJson(attributedText, tokens: tokens)
+    }
+    
+    /// Modify the given `NSMutableAttributedString` to be highlighted according to the syntax.
+    ///
+    /// - parameters:
+    ///   - attributedText:      The `NSMutableAttributedString` that should be highlighted.
+    ///   - syntax:              The syntax that should be used to highlight the given `String`.
+    ///   - behaviour:           The behaviour when parsing the JSON data.
+    open func highlight(_ attributedText: NSMutableAttributedString, as syntax: Syntax, behaviour: JsonTokenizerBehaviour) {
+        guard case .json = syntax else {
+            debugPrint("Highlighting '\(syntax)' is not supported. Supported ones are: 'json'")
+            return
+        }
+        
+        let tokenizer = JsonTokenizer(behaviour: behaviour)
+        let tokens = tokenizer.tokenize(attributedText.string)
+        highlightJson(attributedText, tokens: tokens)
+    }
+    
+    /// Modify the given `NSMutableAttributedString` to be highlighted according to the given `tokens`.
+    ///
+    /// - parameters:
+    ///   - attributedText:      The `NSMutableAttributedString` that should be highlighted.
+    ///   - tokens:              The tokens that should be used to highlight the given `String`.
+    open func highlightJson(_ attributedText: NSMutableAttributedString, tokens: [JsonToken]) {
         attributedText.addAttributes([ .foregroundColor : theme.unknownColor, .font : theme.unknownFont ], range: NSRange(location: 0, length: attributedText.length))
         
-        let theme = self.theme
-
-        let tokenizer = JsonTokenizer()
-        let tokens = tokenizer.tokenize(attributedText.string)
         for token in tokens {
             switch token {
             case .whitespace(let range):
@@ -46,7 +70,6 @@ open class JsonSyntaxHighlightProvider: SyntaxHighlightProvider {
             case .unknown(_, _):
                 return
             }
-
         }
     }
 }

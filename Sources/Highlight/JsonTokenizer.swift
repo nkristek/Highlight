@@ -3,6 +3,12 @@ import Foundation
 public struct JsonTokenizer: Tokenizer {
     public typealias TToken = JsonToken
     
+    public init(behaviour: JsonTokenizerBehaviour) {
+        self.behaviour = behaviour
+    }
+    
+    public var behaviour: JsonTokenizerBehaviour
+    
     public func tokenize(_ text: String) -> [JsonToken] {
         parseElement(StringParser(string: text as NSString))
     }

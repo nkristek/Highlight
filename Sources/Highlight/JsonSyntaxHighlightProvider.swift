@@ -6,8 +6,13 @@ open class JsonSyntaxHighlightProvider: SyntaxHighlightProvider {
     /// A static instance of this provider
     public static let shared: JsonSyntaxHighlightProvider = JsonSyntaxHighlightProvider()
     
+    /// Initialize an instance of the `JsonSyntaxHighlightProvider` class  with a theme
+    public init(theme: JsonSyntaxHighlightingTheme? = nil) {
+        self.theme = theme ?? DefaultJsonSyntaxHighlightingTheme()
+    }
+    
     /// The theme which will be used to highlight the JSON data
-    open var theme: JsonSyntaxHighlightingTheme = DefaultJsonSyntaxHighlightingTheme()
+    open var theme: JsonSyntaxHighlightingTheme
     
     /// Modify the given `NSMutableAttributedString` to be highlighted according to the syntax.
     ///
@@ -19,6 +24,8 @@ open class JsonSyntaxHighlightProvider: SyntaxHighlightProvider {
             debugPrint("Highlighting '\(syntax)' is not supported. Supported ones are: 'json'")
             return
         }
+        
+        attributedText.addAttributes([ .foregroundColor : theme.unknownColor, .font : theme.unknownFont ], range: NSRange(location: 0, length: attributedText.length))
         
         let theme = self.theme
 
@@ -36,8 +43,7 @@ open class JsonSyntaxHighlightProvider: SyntaxHighlightProvider {
                 attributedText.setAttributes([ .foregroundColor : theme.numericValueColor, .font : theme.numericValueFont ], range: range)
             case .literal(let range):
                 attributedText.setAttributes([ .foregroundColor : theme.literalColor, .font : theme.literalFont ], range: range)
-            case .unknown(_, let error):
-                debugPrint("Error parsing the syntax: \(error.localizedDescription)")
+            case .unknown(_, _):
                 return
             }
 

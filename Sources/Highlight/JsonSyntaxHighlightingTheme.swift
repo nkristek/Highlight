@@ -40,4 +40,10 @@ public protocol JsonSyntaxHighlightingTheme {
     
     /// The font for literals like 'true', 'false' or 'null'
     var literalFont: Font { get }
+    
+    /// The color for text which could not be parsed correctly
+    var unknownColor: Color { get }
+    
+    /// The font for text which could not be parsed correctly
+    var unknownFont: Font { get }
 }

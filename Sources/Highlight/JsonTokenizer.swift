@@ -10,172 +10,167 @@ public struct JsonTokenizer: Tokenizer {
     public var behaviour: JsonTokenizerBehaviour
     
     public func tokenize(_ text: String) -> [JsonToken] {
-        parseElement(StringParser(string: text as NSString))
+        var scanner: StringScanner = StringParser(string: text as NSString)
+        return parseElement(&scanner)
     }
     
-    // MARK: - Parsing
-    
-    private func parseElement(_ parser: StringParser) -> [JsonToken] {
+    private func parseElement(_ scanner: inout StringScanner) -> [JsonToken] {
         var tokens = [JsonToken]()
         
-        tokens.compactAppend(parseWhitespace(parser))
+        tokens.compactAppend(parseWhitespace(&scanner))
         if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
             return tokens
         }
         
-        tokens += parseValue(parser)
+        tokens += parseValue(&scanner)
         if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
             return tokens
         }
         
-        tokens.compactAppend(parseWhitespace(parser))
+        tokens.compactAppend(parseWhitespace(&scanner))
         return tokens
     }
     
-    private func parseWhitespace(_ parser: StringParser) -> JsonToken? {
-        if let (_, range) = parser.scanCharacters(from: .whitespacesAndNewlines) {
+    private func parseWhitespace(_ scanner: inout StringScanner) -> JsonToken? {
+        if let (_, range) = scanner.scanCharacters(from: .whitespacesAndNewlines) {
             return .whitespace(range)
         }
         return nil
     }
     
-    private func parseValue(_ parser: StringParser) -> [JsonToken] {
-        var range = NSRange(location: parser.currentIndex, length: 0)
+    private func parseValue(_ scanner: inout StringScanner) -> [JsonToken] {
+        var range = NSRange(location: scanner.currentIndex, length: 0)
         
-        guard let nextCharacter = parser.peekNextCharacter() else {
-            range.length = parser.currentIndex - range.location
+        guard let (nextCharacterPreview, _) = scanner.peekCharacter() else {
             return [ .unknown(range, .expectedSymbol) ]
         }
         
-        switch nextCharacter {
+        switch nextCharacterPreview {
         case "{":
-            return parseObject(parser)
+            return parseObject(&scanner)
         case "[":
-            return parseArray(parser)
+            return parseArray(&scanner)
         case "\"":
-            return [ parseString(parser) ]
+            return [ parseString(&scanner) ]
         case "0"..."9", "-":
-            return [ parseNumber(parser) ]
+            return [ parseNumber(&scanner) ]
         case "t", "f", "n":
-            return [ parseLiteral(parser) ]
+            return [ parseLiteral(&scanner) ]
         default:
-            range.length = parser.currentIndex - range.location
-            return [ .unknown(range, .unexpectedSymbol(description: "Expected the start of a value, got '\(nextCharacter)'")) ]
+            range.length = 1
+            return [ .unknown(range, .unexpectedSymbol(description: "Expected the start of a value, got '\(nextCharacterPreview)'")) ]
         }
     }
     
-    private func parseObject(_ parser: StringParser) -> [JsonToken] {
+    private func parseObject(_ scanner: inout StringScanner) -> [JsonToken] {
         var tokens = [JsonToken]()
         
-        let openingCurlyBraceToken = parseSingleCharacterOperator(parser, expectedOperator: "{")
+        let openingCurlyBraceToken = parseOperator(&scanner, operator: "{")
         tokens.append(openingCurlyBraceToken)
         if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
             return tokens
         }
         
-        if parser.peekNextCharacter(afterCharactersFrom: .whitespacesAndNewlines) != "}" {
-            tokens += parseMembers(parser, until: "}")
+        if let (characterAfterWhitespacePreview, _) = scanner.peekCharacter(afterCharactersFrom: .whitespacesAndNewlines), characterAfterWhitespacePreview != "}" {
+            tokens += parseMembers(&scanner, until: "}")
         } else {
-            tokens.compactAppend(parseWhitespace(parser))
+            tokens.compactAppend(parseWhitespace(&scanner))
         }
         if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
             return tokens
         }
         
-        let closingCurlyBraceToken = parseSingleCharacterOperator(parser, expectedOperator: "}")
+        let closingCurlyBraceToken = parseOperator(&scanner, operator: "}")
         tokens.append(closingCurlyBraceToken)
-        if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
-            return tokens
-        }
-        
         return tokens
     }
     
-    private func parseMembers(_ parser: StringParser, until terminator: Terminator) -> [JsonToken] {
+    private func parseMembers(_ scanner: inout StringScanner, until terminator: Terminator) -> [JsonToken] {
         var tokens = [JsonToken]()
         
-        tokens += parseMember(parser)
+        tokens += parseMember(&scanner)
         if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
             return tokens
         }
         
-        while parser.peekNextCharacter() != terminator.endingCharacter {
-            tokens.append(parseSingleCharacterOperator(parser, expectedOperator: ","))
+        while let (nextCharacterPreview, _) = scanner.peekCharacter(), nextCharacterPreview != terminator.endingCharacter {
+            tokens.append(parseOperator(&scanner, operator: ","))
             if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
                 return tokens
             }
             
-            tokens += parseMember(parser)
+            tokens += parseMember(&scanner)
             if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
                 return tokens
             }
         }
+        
         return tokens
     }
     
-    private func parseMember(_ parser: StringParser) -> [JsonToken] {
+    private func parseMember(_ scanner: inout StringScanner) -> [JsonToken] {
         var tokens = [JsonToken]()
         
-        tokens.compactAppend(parseWhitespace(parser))
+        tokens.compactAppend(parseWhitespace(&scanner))
         if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
             return tokens
         }
         
-        tokens.append(parseString(parser))
+        tokens.append(parseString(&scanner))
         if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
             return tokens
         }
         
-        tokens.compactAppend(parseWhitespace(parser))
+        tokens.compactAppend(parseWhitespace(&scanner))
         if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
             return tokens
         }
         
-        tokens.append(parseSingleCharacterOperator(parser, expectedOperator: ":"))
+        tokens.append(parseOperator(&scanner, operator: ":"))
         if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
             return tokens
         }
         
-        tokens += parseElement(parser)
+        tokens += parseElement(&scanner)
         return tokens
     }
     
-    private func parseArray(_ parser: StringParser) -> [JsonToken] {
+    private func parseArray(_ scanner: inout StringScanner) -> [JsonToken] {
         var tokens = [JsonToken]()
         
-        tokens.append(parseSingleCharacterOperator(parser, expectedOperator: "["))
+        tokens.append(parseOperator(&scanner, operator: "["))
         if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
             return tokens
         }
         
-        if parser.peekNextCharacter(afterCharactersFrom: .whitespacesAndNewlines) != "]" {
-            tokens += parseElements(parser, until: "]")
+        if let (nextCharacterPreview, _) = scanner.peekCharacter(afterCharactersFrom: .whitespacesAndNewlines), nextCharacterPreview != "]" {
+            tokens += parseElements(&scanner, until: "]")
         } else {
-            tokens.compactAppend(parseWhitespace(parser))
+            tokens.compactAppend(parseWhitespace(&scanner))
         }
         if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
             return tokens
         }
         
-        tokens.append(parseSingleCharacterOperator(parser, expectedOperator: "]"))
+        tokens.append(parseOperator(&scanner, operator: "]"))
         return tokens
     }
     
-    private func parseElements(_ parser: StringParser, until terminator: Terminator) -> [JsonToken] {
+    private func parseElements(_ scanner: inout StringScanner, until terminator: Terminator) -> [JsonToken] {
         var tokens = [JsonToken]()
         
-        tokens += parseElement(parser)
+        tokens += parseElement(&scanner)
         if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
             return tokens
         }
         
-        while parser.peekNextCharacter() != terminator.endingCharacter {
-            tokens.append(parseSingleCharacterOperator(parser, expectedOperator: ","))
+        while let (nextCharacterPreview, _) = scanner.peekCharacter(), nextCharacterPreview != terminator.endingCharacter {
+            tokens.append(parseOperator(&scanner, operator: ","))
             if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
                 return tokens
             }
             
-            tokens += parseElement(parser)
+            tokens += parseElement(&scanner)
             if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
                 return tokens
             }
@@ -183,98 +178,85 @@ public struct JsonTokenizer: Tokenizer {
         return tokens
     }
     
-    private func parseString(_ parser: StringParser) -> JsonToken {
-        var range = NSRange(location: parser.currentIndex, length: 0)
+    private func parseString(_ scanner: inout StringScanner) -> JsonToken {
+        var range = NSRange(location: scanner.currentIndex, length: 0)
         
-        let openingQuotationMarkPreview = parser.peekNextCharacter()
-        if openingQuotationMarkPreview != "\"" {
-            range.length = parser.currentIndex - range.location
-            return .unknown(range, .invalidSymbol(expected: "\"", actual: openingQuotationMarkPreview))
-        }
-        guard parser.scanCharacter() != nil else {
-            range.length = parser.currentIndex - range.location
-            return .unknown(range, .expectedSymbol)
+        guard scanner.scanCharacter("\"") != nil else {
+            range.length = 1
+            if let (nextCharacter, _) = scanner.peekCharacter() {
+                return .unknown(range, .invalidSymbol(expected: "\"", actual: nextCharacter))
+            }
+            return .unknown(range, .invalidSymbol(expected: "\"", actual: nil))
         }
         
-        while true {
-            guard parser.scanUpToCharacters(from: CharacterSet(charactersIn: "\"\\")) != nil else {
-                range.length = parser.currentIndex - range.location
+        while !scanner.isAtEnd {
+            scanner.scanUpToCharacters(from: CharacterSet(charactersIn: "\"\\"))
+            
+            guard let (nextCharacter, _) = scanner.scanCharacter() else {
+                range.length = scanner.currentIndex - range.location
                 return .unknown(range, .unenclosedQuotationMarks)
             }
-            
-            guard let nextCharacterPreview = parser.peekNextCharacter() else {
-                range.length = parser.currentIndex - range.location
-                return .unknown(range, .invalidSymbol(expected: "\"", actual: openingQuotationMarkPreview))
-            }
-            if nextCharacterPreview == "\"" {
-                guard parser.scanCharacter() != nil else {
-                    range.length = parser.currentIndex - range.location
-                    return .unknown(range, .expectedSymbol)
-                }
+            if nextCharacter == "\"" {
                 break
-            }
-            if nextCharacterPreview == "\\" {
-                guard parser.scanCharacter() != nil else {
-                    range.length = parser.currentIndex - range.location
-                    return .unknown(range, .expectedSymbol)
-                }
-                guard let (escapedCharacter, _) = parser.scanCharacter() else {
-                    range.length = parser.currentIndex - range.location
+            } else if nextCharacter == "\\" {
+                // next character should be escaped
+                guard let (escapedCharacter, _) = scanner.scanCharacter() else {
+                    range.length = scanner.currentIndex - range.location
                     return .unknown(range, .expectedSymbol)
                 }
                 switch escapedCharacter {
                 case "\"", "\\", "/", "b", "f", "n", "r", "t":
                     break
                 case "u":
-                    let hex = Set<Character>(arrayLiteral:
-                                             "0","1","2","3","4","5","6","7","8","9",
-                                             "a","b","c","d","e","f",
-                                             "A","B","C","D","E","F")
-                    do {
-                        try parseExpectedCharacter(parser, in: hex)
-                        try parseExpectedCharacter(parser, in: hex)
-                        try parseExpectedCharacter(parser, in: hex)
-                        try parseExpectedCharacter(parser, in: hex)
-                    } catch {
-                        range.length = parser.currentIndex - range.location
-                        return .unknown(range, error as? JsonTokenizerError ?? .unexpectedSymbol(description: "Error while parsing an escaped unicode symbol"))
+                    let hexCharacterSet = CharacterSet(charactersIn: "0123456789abcdefABCDEF")
+                    guard
+                        scanner.scanCharacter(from: hexCharacterSet) != nil,
+                        scanner.scanCharacter(from: hexCharacterSet) != nil,
+                        scanner.scanCharacter(from: hexCharacterSet) != nil,
+                        scanner.scanCharacter(from: hexCharacterSet) != nil
+                    else {
+                        range.length = scanner.currentIndex - range.location
+                        return .unknown(range, .unexpectedSymbol(description: "Error while parsing an escaped unicode symbol"))
                     }
                 default:
-                    range.length = parser.currentIndex - range.location
+                    range.length = scanner.currentIndex - range.location
                     return .unknown(range, .unexpectedSymbol(description: "Escaped character can only be \" \\ / b f n r t u, got: \(String(escapedCharacter))"))
                 }
+            } else {
+                range.length = scanner.currentIndex - range.location
+                return .unknown(range, .unenclosedQuotationMarks)
             }
         }
         
-        range.length = parser.currentIndex - range.location
+        range.length = scanner.currentIndex - range.location
         return .stringValue(range)
     }
     
-    private func parseNumber(_ parser: StringParser) -> JsonToken {
-        let indexBefore = parser.currentIndex
+    private func parseNumber(_ scanner: inout StringScanner) -> JsonToken {
+        let indexBefore = scanner.currentIndex
         do {
-            try parseInteger(parser)
-            try parseFraction(parser)
-            try parseExponent(parser)
+            try parseInteger(&scanner)
+            try parseFraction(&scanner)
+            try parseExponent(&scanner)
         } catch {
-            let range = NSRange(location: indexBefore, length: parser.currentIndex - indexBefore)
+            let range = NSRange(location: indexBefore, length: scanner.currentIndex - indexBefore)
             return .unknown(range, error as? JsonTokenizerError ?? .unexpectedSymbol(description: "Error while parsing a number"))
         }
-        return .numericValue(NSRange(location: indexBefore, length: parser.currentIndex - indexBefore))
+        return .numericValue(NSRange(location: indexBefore, length: scanner.currentIndex - indexBefore))
     }
     
     @discardableResult
-    private func parseInteger(_ parser: StringParser) throws -> String {
+    private func parseInteger(_ scanner: inout StringScanner) throws -> String {
         var integer = ""
         
         while true {
-            guard let character = parser.peekNextCharacter() else {
+            guard let (characterPreview, _) = scanner.peekCharacter() else {
                 throw JsonTokenizerError.expectedSymbol
             }
-            switch character {
+            switch characterPreview {
             case "0":
-                integer.append(character)
-                parser.scanCharacter()
+                integer.append(characterPreview)
+                scanner.scanCharacter()
                 if integer == "0" || integer == "-0" {
                     return integer
                 }
@@ -282,14 +264,14 @@ public struct JsonTokenizer: Tokenizer {
                 if !integer.isEmpty {
                     return integer
                 }
-                integer.append(character)
-                parser.scanCharacter()
+                integer.append(characterPreview)
+                scanner.scanCharacter()
             case "1"..."9":
-                integer.append(character)
-                parser.scanCharacter()
+                integer.append(characterPreview)
+                scanner.scanCharacter()
             default:
                 if integer.isEmpty {
-                    throw JsonTokenizerError.unexpectedSymbol(description: "Expected digit, got: \(String(character))")
+                    throw JsonTokenizerError.unexpectedSymbol(description: "Expected digit, got: \(String(characterPreview))")
                 }
                 return integer
             }
@@ -297,25 +279,22 @@ public struct JsonTokenizer: Tokenizer {
     }
     
     @discardableResult
-    private func parseFraction(_ parser: StringParser) throws -> String {
+    private func parseFraction(_ scanner: inout StringScanner) throws -> String {
         var fraction = ""
         
-        if parser.peekNextCharacter() != "." {
+        guard scanner.scanCharacter(".") != nil else {
             return fraction
         }
-        guard let (dotCharacter, _) = parser.scanCharacter() else {
-            throw JsonTokenizerError.expectedSymbol
-        }
-        fraction.append(dotCharacter)
+        fraction.append(".")
         
         while true {
-            guard let character = parser.peekNextCharacter() else {
+            guard let (characterPreview, _) = scanner.peekCharacter() else {
                 throw JsonTokenizerError.expectedSymbol
             }
-            switch character {
+            switch characterPreview {
             case "0"..."9":
-                fraction.append(character)
-                parser.scanCharacter()
+                fraction.append(characterPreview)
+                scanner.scanCharacter()
             default:
                 return fraction
             }
@@ -323,122 +302,48 @@ public struct JsonTokenizer: Tokenizer {
     }
     
     @discardableResult
-    private func parseExponent(_ parser: StringParser) throws -> String {
+    private func parseExponent(_ scanner: inout StringScanner) throws -> String {
         var exponent = ""
         
-        guard let eCharacterPreview = parser.peekNextCharacter() else {
+        guard let (eCharacter, _) = scanner.scanCharacter(from: CharacterSet(charactersIn: "eE")) else {
             return exponent
         }
-        if eCharacterPreview != "e" && eCharacterPreview != "E" {
-            return exponent
-        }
-        exponent.append(eCharacterPreview)
-        parser.scanCharacter()
+        exponent.append(eCharacter)
         
-        let signCharacterPreview = parser.peekNextCharacter()
-        if signCharacterPreview == "+" || signCharacterPreview == "-" {
-            exponent.append(signCharacterPreview!)
-            parser.scanCharacter()
+        if let (signCharacter, _) = scanner.scanCharacter(from: CharacterSet(charactersIn: "+-")) {
+            exponent.append(signCharacter)
         }
         
         while true {
-            guard let character = parser.peekNextCharacter() else {
+            guard let (characterPreview, _) = scanner.peekCharacter() else {
                 throw JsonTokenizerError.expectedSymbol
             }
-            switch character {
+            switch characterPreview {
             case "0"..."9":
-                exponent.append(character)
-                parser.scanCharacter()
+                exponent.append(characterPreview)
+                scanner.scanCharacter()
             default:
                 return exponent
             }
         }
     }
     
-    private func parseLiteral(_ parser: StringParser) -> JsonToken {
-        var range = NSRange(location: parser.currentIndex, length: 1)
-        
-        let firstCharacter = parser.peekNextCharacter()
-        switch firstCharacter {
-        case "t":
-            guard parser.scanString("true") != nil else {
-                range.length = parser.currentIndex - range.location
-                return .unknown(range, .unexpectedSymbol(description: "Expected 'true'"))
-            }
-            range.length = parser.currentIndex - range.location
+    private func parseLiteral(_ scanner: inout StringScanner) -> JsonToken {
+        if let range = scanner.scanString("true") {
             return .literal(range)
-        case "f":
-            guard parser.scanString("false") != nil else {
-                range.length = parser.currentIndex - range.location
-                return .unknown(range, .unexpectedSymbol(description: "Expected 'false'"))
-            }
-            range.length = parser.currentIndex - range.location
+        } else if let range = scanner.scanString("false") {
             return .literal(range)
-        case "n":
-            guard parser.scanString("null") != nil else {
-                range.length = parser.currentIndex - range.location
-                return .unknown(range, .unexpectedSymbol(description: "Expected 'null'"))
-            }
-            range.length = parser.currentIndex - range.location
+        } else if let range = scanner.scanString("null") {
             return .literal(range)
-        case nil:
-            return .unknown(range, .expectedSymbol)
-        default:
-            return .unknown(range, .unexpectedSymbol(description: "Expected literal (true, false, null), got first character: \(String(firstCharacter!))"))
+        } else {
+            return .unknown(NSRange(location: scanner.currentIndex, length: 0), .unexpectedSymbol(description: "Expected literal like 'true', 'false' or 'null'"))
         }
     }
     
-    // MARK: - Helper
-    
-    private func parseSingleCharacterOperator(_ parser: StringParser, expectedOperator: Character) -> JsonToken {
-        var range = NSRange(location: parser.currentIndex, length: 0)
-        do {
-            try parseExpectedCharacter(parser, expectedCharacter: expectedOperator)
-            range.length = parser.currentIndex - range.location
-            return .operator(range)
-        } catch {
-            range.length = parser.currentIndex - range.location
-            return .unknown(range, error as? JsonTokenizerError ?? JsonTokenizerError.invalidSymbol(expected: expectedOperator, actual: nil))
+    private func parseOperator(_ scanner: inout StringScanner, operator: Character) -> JsonToken {
+        guard let range = scanner.scanCharacter(`operator`) else {
+            return .unknown(NSRange(location: scanner.currentIndex, length: 0), .invalidSymbol(expected: `operator`, actual: nil))
         }
-    }
-    
-    @discardableResult
-    private func parseExpectedCharacter(_ parser: StringParser, in characterSet: Set<Character>) throws -> Character {
-        guard let (character, _) = parser.scanCharacter() else {
-            throw JsonTokenizerError.expectedSymbol
-        }
-        guard characterSet.contains(character) else {
-            throw JsonTokenizerError.unexpectedSymbol(description: "Character is not in the accepted character set (\(characterSet.description)), got: \(String(character))")
-        }
-        return character
-    }
-    
-    @discardableResult
-    private func parseExpectedCharacter(_ parser: StringParser, expectedCharacter: Character) throws -> Character {
-        guard let (character, _) = parser.scanCharacter() else {
-            throw JsonTokenizerError.invalidSymbol(expected: "\"", actual: nil)
-        }
-        if character != expectedCharacter {
-            throw JsonTokenizerError.invalidSymbol(expected: expectedCharacter, actual: character)
-        }
-        return character
-    }
-}
-
-fileprivate struct Terminator {
-    public var endingCharacter: Character?
-}
-
-extension Terminator {
-    static var end: Terminator {
-        return Terminator(endingCharacter: nil)
-    }
-}
-
-extension Terminator: ExpressibleByUnicodeScalarLiteral {
-    typealias UnicodeScalarLiteralType = Character
-    
-    init(unicodeScalarLiteral value: Character) {
-        self.init(endingCharacter: value)
+        return .operator(range)
     }
 }

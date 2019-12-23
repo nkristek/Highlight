@@ -7,21 +7,21 @@ public protocol SyntaxHighlightProvider {
     ///
     /// - parameters:
     ///   - text:      The `String` that should be highlighted.
-    ///   - syntaxIdentifier:        The identifier of the syntax that should be used to highlight the given `String`
-    func highlight(_ text: String, as syntaxIdentifier: String) -> NSAttributedString
+    ///   - syntaxIdentifier:        The syntax that should be used to highlight the given `String`
+    func highlight(_ text: String, as syntax: Syntax) -> NSAttributedString
     
     /// Modify the given `NSMutableAttributedString` to be highlighted according to the syntax.
     ///
     /// - parameters:
     ///   - attributedText:      The `NSMutableAttributedString` that should be highlighted.
-    ///   - syntaxIdentifier:        The identifier of the syntax that should be used to highlight the given `String`
-    func highlight(_ attributedText: NSMutableAttributedString, as syntaxIdentifier: String)
+    ///   - syntaxIdentifier:        The syntax that should be used to highlight the given `String`
+    func highlight(_ attributedText: NSMutableAttributedString, as syntax: Syntax)
 }
 
 public extension SyntaxHighlightProvider {
-    func highlight(_ text: String, as syntaxIdentifier: String) -> NSAttributedString {
+    func highlight(_ text: String, as syntax: Syntax) -> NSAttributedString {
         let result = NSMutableAttributedString(string: text)
-        highlight(result, as: syntaxIdentifier)
+        highlight(result, as: syntax)
         return result
     }
 }

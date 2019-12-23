@@ -163,7 +163,7 @@ internal struct StringParser: StringScanner {
     }
     
     internal func peekString(_ searchString: String) -> NSRange? {
-        let nsSearchStringLength = (string as NSString).length
+        let nsSearchStringLength = (searchString as NSString).length
         guard currentIndex + nsSearchStringLength <= string.length else { return nil }
         let searchRange = NSRange(location: currentIndex, length: nsSearchStringLength)
         let scannedString = string.substring(with: searchRange)

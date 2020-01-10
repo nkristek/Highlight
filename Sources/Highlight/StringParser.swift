@@ -172,10 +172,10 @@ internal struct StringParser: StringScanner {
     }
     
     internal func peekCharacter(afterCharactersFrom set: CharacterSet) -> (Character, NSRange)? {
-        guard
-            let (_, rangeOfExcludedCharacters) = peekCharacters(from: set),
-            rangeOfExcludedCharacters.location + rangeOfExcludedCharacters.length < string.length
-        else { return nil }
+        guard let (_, rangeOfExcludedCharacters) = peekCharacters(from: set) else {
+            return peekCharacter()
+        }
+        guard rangeOfExcludedCharacters.location + rangeOfExcludedCharacters.length < string.length else { return nil }
         let rangeOfNextCharacter = string.rangeOfComposedCharacterSequence(at: rangeOfExcludedCharacters.location + rangeOfExcludedCharacters.length)
         let charString = string.substring(with: rangeOfNextCharacter)
         guard

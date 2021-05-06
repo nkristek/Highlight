@@ -2,6 +2,9 @@ import Foundation
 
 /// A specific part of JSON data with the associated value and location in the original data
 public enum JsonToken {
+    /// Keys
+    case memberKey(NSRange)
+
     /// Whitespace
     case whitespace(NSRange)
     

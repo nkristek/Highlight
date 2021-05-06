@@ -42,4 +42,15 @@ internal extension Color {
             }
         }
     }
+
+    class var jsonMemberKeyColor: Color {
+        Color { (style: UserInterfaceStyle) -> Color in
+            switch style {
+            case .dark:
+                return Color(hue: 234/360, saturation: 0.62, brightness: 0.99, alpha: 1)
+            default:
+                return Color(hue: 204/360, saturation: 0.77, brightness: 0.61, alpha: 1)
+            }
+        }
+    }
 }

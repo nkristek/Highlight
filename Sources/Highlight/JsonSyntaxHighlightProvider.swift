@@ -67,6 +67,8 @@ open class JsonSyntaxHighlightProvider: SyntaxHighlightProvider {
                 attributedText.setAttributes([ .foregroundColor : theme.numericValueColor, .font : theme.numericValueFont ], range: range)
             case .literal(let range):
                 attributedText.setAttributes([ .foregroundColor : theme.literalColor, .font : theme.literalFont ], range: range)
+            case .memberKey(let range):
+                attributedText.setAttributes([ .foregroundColor : theme.memberKeyColor, .font : theme.literalFont ], range: range)
             case .unknown(_, _):
                 return
             }

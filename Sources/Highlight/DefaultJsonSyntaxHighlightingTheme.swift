@@ -11,6 +11,8 @@ public struct DefaultJsonSyntaxHighlightingTheme: JsonSyntaxHighlightingTheme {
         literalFont = .monospacedSystemFont(ofSize: size, weight: .bold)
         unknownFont = .monospacedSystemFont(ofSize: size, weight: .medium)
     }
+
+    public var memberKeyColor: Color = .jsonMemberKeyColor
     
     public var whitespaceColor: Color = .jsonOperatorColor
     

@@ -116,7 +116,7 @@ public struct JsonTokenizer: Tokenizer {
             return tokens
         }
         
-        tokens.append(parseString(&scanner))
+        tokens.append(parseMemberKey(&scanner))
         if let lastToken = tokens.last, case JsonToken.unknown(_, _) = lastToken {
             return tokens
         }
@@ -176,6 +176,14 @@ public struct JsonTokenizer: Tokenizer {
             }
         }
         return tokens
+    }
+
+    private func parseMemberKey(_ scanner: inout StringScanner) -> JsonToken {
+        let token = parseString(&scanner)
+        if case .stringValue(let range) = token {
+            return .memberKey(range)
+        }
+        return token
     }
     
     private func parseString(_ scanner: inout StringScanner) -> JsonToken {

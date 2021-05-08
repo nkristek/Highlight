@@ -8,6 +8,11 @@ public protocol JsonSyntaxHighlightingTheme {
     
     /// The font for whitespace
     var whitespaceFont: Font { get }
+
+    // MARK: - Members
+
+    /// The color for keys
+    var memberKeyColor: Color { get }
     
     // MARK: - Operators
     
@@ -37,7 +42,7 @@ public protocol JsonSyntaxHighlightingTheme {
     
     /// The color for literals like 'true', 'false' or 'null'
     var literalColor: Color { get }
-    
+
     /// The font for literals like 'true', 'false' or 'null'
     var literalFont: Font { get }
     
